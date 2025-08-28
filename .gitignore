@@ -6,10 +6,6 @@ __pycache__/
 # Environment variables and API keys
 .env
 
-# Local article content
-local.txt
-
-
 # IDE specific files
 .vscode/
 .idea/

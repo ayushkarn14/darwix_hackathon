@@ -1,5 +1,95 @@
 import os
 import json
+import re
+
+
+def convert_markdown_to_html(text):
+    """Convert basic Markdown syntax to HTML"""
+    if not text:
+        return ""
+
+    # Convert bold (**text**) to <strong>text</strong>
+    text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+
+    # Convert numbered lists (1. item) to ordered lists
+    # First, detect if we have a numbered list
+    if re.search(r"^\d+\.\s", text, re.MULTILINE):
+        # Split by lines
+        lines = text.split("\n")
+        list_started = False
+        result = []
+
+        for line in lines:
+            # Check if this is a list item (starts with number and period)
+            list_item = re.match(r"^\s*(\d+)\.\s+(.*)", line)
+
+            if list_item:
+                if not list_started:
+                    # Start a new list if we're not already in one
+                    result.append("<ol>")
+                    list_started = True
+
+                # Add the list item
+                result.append(f"<li>{list_item.group(2)}</li>")
+            else:
+                # If we're ending a list, close it
+                if list_started:
+                    result.append("</ol>")
+                    list_started = False
+
+                # Add the regular line if it's not empty
+                if line.strip():
+                    result.append(f"<p>{line}</p>")
+
+        # If we ended while still in a list, close it
+        if list_started:
+            result.append("</ol>")
+
+        return "\n".join(result)
+
+    # Convert bullet lists (* item) to unordered lists
+    if re.search(r"^\s*\*\s", text, re.MULTILINE):
+        lines = text.split("\n")
+        list_started = False
+        result = []
+
+        for line in lines:
+            # Check if this is a list item (starts with *)
+            list_item = re.match(r"^\s*\*\s+(.*)", line)
+
+            if list_item:
+                if not list_started:
+                    # Start a new list if we're not already in one
+                    result.append("<ul>")
+                    list_started = True
+
+                # Add the list item
+                result.append(f"<li>{list_item.group(1)}</li>")
+            else:
+                # If we're ending a list, close it
+                if list_started:
+                    result.append("</ul>")
+                    list_started = False
+
+                # Add the regular line if it's not empty
+                if line.strip():
+                    result.append(f"<p>{line}</p>")
+
+        # If we ended while still in a list, close it
+        if list_started:
+            result.append("</ul>")
+
+        return "\n".join(result)
+
+    # Split paragraphs and wrap them in <p> tags
+    paragraphs = text.split("\n\n")
+    formatted = []
+
+    for para in paragraphs:
+        if para.strip():
+            formatted.append(f"<p>{para}</p>")
+
+    return "\n".join(formatted)
 
 
 def generate_html_report(article_data, analysis, credibility_info=None):
@@ -72,7 +162,7 @@ def generate_html_report(article_data, analysis, credibility_info=None):
                         <h3 class="mb-0">Headline Analysis</h3>
                     </div>
                     <div class="card-body">
-                        <p>{analysis.get("headline_analysis")}</p>
+                        {convert_markdown_to_html(analysis.get("headline_analysis"))}
         """
 
         # Add sensationalism score if available
@@ -125,7 +215,18 @@ def generate_html_report(article_data, analysis, credibility_info=None):
         for claim in analysis.get("core_claims", []):
             html += f'<li class="list-group-item">{claim}</li>'
     else:
-        html += f'<li class="list-group-item">{analysis.get("core_claims", "No core claims identified.")}</li>'
+        content = analysis.get("core_claims", "No core claims identified.")
+        # Add check to ensure content is a string
+        if isinstance(content, str) and content.startswith(
+            "- "
+        ):  # Check if content has bullet points
+            html += "<ul>"
+            for line in content.split("\n"):
+                if line.startswith("- "):
+                    html += f"<li>{line[2:]}</li>"
+            html += "</ul>"
+        else:
+            html += f'<li class="list-group-item">{content}</li>'
 
     html += """
                         </ul>
@@ -146,7 +247,7 @@ def generate_html_report(article_data, analysis, credibility_info=None):
     if isinstance(lang_tone, list):
         html += f'<p>{" ".join(lang_tone)}</p>'
     else:
-        html += f"<p>{lang_tone}</p>"
+        html += convert_markdown_to_html(lang_tone)
 
     html += """
                     </div>
@@ -163,10 +264,23 @@ def generate_html_report(article_data, analysis, credibility_info=None):
     """
 
     if isinstance(analysis.get("red_flags"), list):
+        html += "<ul>"
         for flag in analysis.get("red_flags", []):
-            html += f'<div class="red-flag mb-2">{flag}</div>'
+            html += f'<li class="red-flag mb-2">{flag}</li>'
+        html += "</ul>"
     else:
-        html += f'<p>{analysis.get("red_flags", "No red flags identified.")}</p>'
+        content = analysis.get("red_flags", "No red flags identified.")
+        # Add check to ensure content is a string
+        if isinstance(content, str) and content.startswith(
+            "- "
+        ):  # Check if content has bullet points
+            html += "<ul>"
+            for line in content.split("\n"):
+                if line.startswith("- "):
+                    html += f'<li class="red-flag mb-2">{line[2:]}</li>'
+            html += "</ul>"
+        else:
+            html += convert_markdown_to_html(content)
 
     html += """
                     </div>
@@ -208,7 +322,18 @@ def generate_html_report(article_data, analysis, credibility_info=None):
             </div>
         """
     else:
-        html += f'<p>{analysis.get("key_entities", "No key entities identified.")}</p>'
+        content = analysis.get("key_entities", "No key entities identified.")
+        # Add check to ensure content is a string
+        if isinstance(content, str) and content.startswith(
+            "- "
+        ):  # Check if content has bullet points
+            html += "<ul>"
+            for line in content.split("\n"):
+                if line.startswith("- "):
+                    html += f"<li>{line[2:]}</li>"
+            html += "</ul>"
+        else:
+            html += convert_markdown_to_html(content)
 
     html += """
                         </div>
@@ -248,7 +373,20 @@ def generate_html_report(article_data, analysis, credibility_info=None):
                 </div>
             """
     else:
-        html += f'<p>{analysis.get("verification_questions", "No verification questions generated.")}</p>'
+        content = analysis.get(
+            "verification_questions", "No verification questions generated."
+        )
+        # Fixed: Check if content is a string before trying to use startswith()
+        if isinstance(content, str) and content.startswith(
+            "- "
+        ):  # Check if content has bullet points
+            html += "<ol>"
+            for line in content.split("\n"):
+                if line.startswith("- "):
+                    html += f"<li>{line[2:]}</li>"
+            html += "</ol>"
+        else:
+            html += convert_markdown_to_html(content)
 
     html += """
                         </div>
@@ -274,7 +412,7 @@ def generate_html_report(article_data, analysis, credibility_info=None):
         if isinstance(counter_arg, list):
             html += f'<p>{" ".join(counter_arg)}</p>'
         else:
-            html += f"<p>{counter_arg}</p>"
+            html += convert_markdown_to_html(counter_arg)
     else:
         html += "<p>No counter-argument perspective generated.</p>"
 
