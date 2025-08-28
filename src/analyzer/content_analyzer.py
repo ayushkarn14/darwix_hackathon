@@ -7,7 +7,7 @@ from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from ..utils.text_processor import extract_section
 
 
-def analyze_article(article_data):
+def analyze_article(article_data, verbose=False):
     """Use LLM to analyze the article content."""
 
     # Define output schemas
@@ -80,7 +80,11 @@ def analyze_article(article_data):
 
     for model in models:
         try:
-            print(f"Trying with model: {model}")
+            if verbose:
+                print(f"Trying with model: {model}")
+            else:
+                print(f"Analyzing with {model}...")
+
             llm = ChatGoogleGenerativeAI(model=model, temperature=0.2)
 
             # Implement retry with exponential backoff
@@ -131,9 +135,6 @@ def analyze_article(article_data):
         # If all models failed, generate a fallback analysis based on simple heuristics
         print("All models failed. Generating fallback analysis...")
         return generate_fallback_analysis(article_data)
-
-
-# Add these helper functions with docstrings
 
 
 def create_fallback_analysis(raw_content):
@@ -205,4 +206,19 @@ def generate_fallback_analysis(article_data):
             for entity in entities[:5]
         ],
         "counter_argument": "Unable to generate a counter-argument due to technical limitations. Consider seeking alternative viewpoints on this topic.",
+    }
+
+
+def generate_empty_analysis():
+    """Generate an empty analysis structure when no content is available."""
+    return {
+        "core_claims": ["No article content available for analysis"],
+        "language_tone": "No content to analyze",
+        "red_flags": ["No content available for analysis"],
+        "verification_questions": [
+            "Is the article content actually available?",
+            "Is there a technical issue with the content retrieval?",
+        ],
+        "key_entities": [],
+        "counter_argument": "No content to analyze",
     }
