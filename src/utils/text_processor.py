@@ -7,7 +7,7 @@ def extract_section(text, section_name):
     for section in sections:
         if section_name.lower() in section.lower():
             lines = [line.strip() for line in section.split("\n") if line.strip()]
-            if len(lines) > 1:  # Skip the section title
+            if len(lines) > 1:
                 if section_name in [
                     "Core Claims",
                     "Potential Red Flags",
